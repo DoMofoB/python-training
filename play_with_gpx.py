@@ -5,37 +5,49 @@ References:
 """
 
 import os
+import math
 
 import gpxpy
+import pytz
 import matplotlib.pyplot as pyplot
 
 
 DATA_PATH = 'data'
-GPX_FILE = r'20170521.gpx'
+GPX_FILE = '20170521.gpx'
+TITLE = 'Mount Washington - Sunday May 21th'
+TIMEZONE = 'US/Eastern'
 
 
 def main():
     """Main!"""
     filename = os.path.splitext(GPX_FILE)[0]
+
     # Read GPX file
     with open(os.path.join(DATA_PATH, GPX_FILE), 'r') as fid:
         gpx = gpxpy.parse(fid)
+
     # Write XML conversion file
     xml = gpx.to_xml()
     with open(os.path.join(DATA_PATH, filename+'.xml'), 'w') as fid:
         fid.writelines(xml)
-    # Plot elevation vs seconds
-    all_seconds = []
+
+    # Retrieve hours and elevation
+    timezone = pytz.timezone(TIMEZONE)
+    all_hours = []
     all_elevation = []
-    start_time = gpx.tracks[0].segments[0].points[0].time
     for point in gpx.tracks[0].segments[0].points:
         all_elevation.append(point.elevation)
-        nb_seconds = (point.time - start_time).seconds
-        all_seconds.append(nb_seconds)
-    pyplot.plot(all_seconds, all_elevation)
-    pyplot.xlabel('time (s)')
+        utc_dt = pytz.utc.localize(point.time)
+        my_tz_dt = timezone.normalize(utc_dt.astimezone(timezone))
+        frac_hour = my_tz_dt.hour + my_tz_dt.minute/60 + my_tz_dt.second/3600
+        all_hours.append(frac_hour)
+
+    # Plot elevation vs seconds
+    pyplot.plot(all_hours, all_elevation)
+    pyplot.xticks(range(math.floor(all_hours[0]), math.ceil(all_hours[-1]), 1))
+    pyplot.xlabel('time (h)')
     pyplot.ylabel('elevation (m)')
-    pyplot.title('Mount Washington - Sunday May 21th')
+    pyplot.title(TITLE)
     pyplot.grid(True)
     pyplot.savefig(os.path.join(DATA_PATH, filename+'_elevation.png'))
     pyplot.show()
